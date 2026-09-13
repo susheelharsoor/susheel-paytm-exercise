@@ -28,19 +28,20 @@ if [ "${DB_HOST:-localhost}" = "localhost" ]; then
         -o "-c listen_addresses=''" \
         -w start
 
-    # Provision database + user if they do not already exist (idempotent).
-    gosu postgres psql --username postgres <<-EOSQL
-        DO \$\$
-        BEGIN
-            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_USERNAME}') THEN
-                CREATE USER "${DB_USERNAME}" WITH PASSWORD '${DB_PASSWORD}';
-            END IF;
-        END
-        \$\$;
+    # Provision user if it does not already exist (idempotent).
+    gosu postgres psql --username postgres <<EOSQL
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_USERNAME}') THEN
+        CREATE USER "${DB_USERNAME}" WITH PASSWORD '${DB_PASSWORD}';
+    END IF;
+END
+\$\$;
+EOSQL
 
-        SELECT 'CREATE DATABASE "${DB_NAME}" OWNER "${DB_USERNAME}"'
-        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec
-    EOSQL
+    # Provision database if it does not already exist (idempotent).
+    gosu postgres psql --username postgres \
+        -c "CREATE DATABASE \"${DB_NAME}\" OWNER \"${DB_USERNAME}\"" 2>/dev/null || true
 
     echo "[entrypoint] Stopping temporary PostgreSQL ..."
     gosu postgres /usr/lib/postgresql/16/bin/pg_ctl -D "${PGDATA}" -w stop
