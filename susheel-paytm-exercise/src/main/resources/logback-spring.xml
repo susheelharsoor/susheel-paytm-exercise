@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!--
+        Replace Spring Boot's default plain-text console pattern with pure JSON Lines.
+        Every log line emitted to stdout is a valid JSON object parseable by log
+        aggregators (Grafana Loki, Datadog, CloudWatch Logs Insights, etc.).
+
+        MDC fields (correlationId set by CorrelationIdFilter) are automatically
+        promoted to top-level JSON keys by LogstashEncoder — no extra code needed.
+
+        Example output line:
+        {
+          "@timestamp": "2026-09-12T17:30:01.234Z",
+          "level": "INFO",
+          "thread": "nio-8080-exec-3",
+          "logger": "c.e.d.logging.StructuredEventLogger",
+          "message": "{\"eventType\":\"transfer_created\", ...}",
+          "correlationId": "a1b2-c3d4-..."
+        }
+    -->
+
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="wallet-service"/>
+
+    <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Keep the standard fields; add app name for easy filtering -->
+            <customFields>{"app":"${appName}"}</customFields>
+            <!-- Shorten the logger name to avoid noise -->
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+        </encoder>
+    </appender>
+
+    <!-- Root logger: INFO to JSON stdout -->
+    <root level="INFO">
+        <appender-ref ref="JSON_STDOUT"/>
+    </root>
+
+    <!-- Quieten chatty Spring/Hibernate internals -->
+    <logger name="org.springframework"           level="WARN"/>
+    <logger name="org.hibernate"                 level="WARN"/>
+    <logger name="com.zaxxer.hikari"             level="WARN"/>
+    <logger name="org.springframework.web.servlet.DispatcherServlet" level="INFO"/>
+
+    <!-- Our application code stays at INFO -->
+    <logger name="com.example.demo" level="INFO"/>
+
+</configuration>
