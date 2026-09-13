@@ -18,15 +18,3 @@ CREATE TABLE IF NOT EXISTS transfers (
     idempotency_key  VARCHAR(255) NOT NULL UNIQUE
 );
 
--- Ensure the CHECK constraint exists on the wallets table even if the table
--- was previously created without it (e.g. via ddl-auto=update).
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'wallets_balance_non_negative'
-    ) THEN
-        ALTER TABLE wallets
-            ADD CONSTRAINT wallets_balance_non_negative CHECK (balance >= 0);
-    END IF;
-END$$;
