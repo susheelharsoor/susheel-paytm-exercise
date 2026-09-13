@@ -1,24 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!--
-        Replace Spring Boot's default plain-text console pattern with pure JSON Lines.
-        Every log line emitted to stdout is a valid JSON object parseable by log
-        aggregators (Grafana Loki, Datadog, CloudWatch Logs Insights, etc.).
-
-        MDC fields (correlationId set by CorrelationIdFilter) are automatically
-        promoted to top-level JSON keys by LogstashEncoder — no extra code needed.
-
-        Example output line:
-        {
-          "@timestamp": "2026-09-12T17:30:01.234Z",
-          "level": "INFO",
-          "thread": "nio-8080-exec-3",
-          "logger": "c.e.d.logging.StructuredEventLogger",
-          "message": "{\"eventType\":\"transfer_created\", ...}",
-          "correlationId": "a1b2-c3d4-..."
-        }
-    -->
 
     <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="wallet-service"/>
 
