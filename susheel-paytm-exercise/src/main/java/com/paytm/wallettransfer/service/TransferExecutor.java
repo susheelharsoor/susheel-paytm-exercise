@@ -1,5 +1,13 @@
 package com.paytm.wallettransfer.service;
 
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.paytm.wallettransfer.dto.TransferResponse;
 import com.paytm.wallettransfer.entity.Transfer;
 import com.paytm.wallettransfer.entity.Wallet;
@@ -12,13 +20,6 @@ import com.paytm.wallettransfer.logging.StructuredEventLogger;
 import com.paytm.wallettransfer.metrics.MetricsService;
 import com.paytm.wallettransfer.repository.TransferRepository;
 import com.paytm.wallettransfer.repository.WalletRepository;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * Holds the transactional units for transfer execution.
@@ -95,14 +96,9 @@ public class TransferExecutor {
         Wallet fromWallet = (fromWalletId == firstId) ? firstWallet : secondWallet;
         Wallet toWallet = (toWalletId == firstId) ? firstWallet : secondWallet;
 
-        try {
-            fromWallet.debit(amountPaise);
-            eventLogger.logDomainEvent("debited", Map.of(
-                    "walletId", fromWallet.getId(),
-                    "amountPaise", amountPaise,
-                    "remainingBalance", fromWallet.getBalance()
-            ));
-        } catch (InsufficientBalanceException e) {
+        // Atomic DB-level debit: UPDATE ... WHERE balance >= amount (returns 0 if insufficient)
+        int debited = walletRepository.debitBalance(fromWallet.getId(), amountPaise);
+        if (debited == 0) {
             metricsService.incrementDomainCounter("transfers_declined_insufficient_funds");
             eventLogger.logDomainEvent("transfer_declined", Map.of(
                     "reason", "Insufficient balance",
@@ -111,18 +107,21 @@ public class TransferExecutor {
                     "currentBalance", fromWallet.getBalance(),
                     "idempotencyKey", idempotencyKey
             ));
-            throw e;
+            throw new InsufficientBalanceException(fromWallet.getId());
         }
 
-        toWallet.credit(amountPaise);
+        eventLogger.logDomainEvent("debited", Map.of(
+                "walletId", fromWallet.getId(),
+                "amountPaise", amountPaise,
+                "idempotencyKey", idempotencyKey
+        ));
+
+        walletRepository.creditBalance(toWallet.getId(), amountPaise);
         eventLogger.logDomainEvent("credited", Map.of(
                 "walletId", toWallet.getId(),
                 "amountPaise", amountPaise,
-                "newBalance", toWallet.getBalance()
+                "idempotencyKey", idempotencyKey
         ));
-
-        walletRepository.save(fromWallet);
-        walletRepository.save(toWallet);
 
         Transfer saved = transferRepository.save(new Transfer(fromWallet, toWallet, amountPaise, idempotencyKey));
 
