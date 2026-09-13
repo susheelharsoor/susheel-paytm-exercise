@@ -6,6 +6,8 @@ import com.paytm.wallettransfer.exception.ResourceNotFoundException;
 import com.paytm.wallettransfer.repository.WalletRepository;
 import com.paytm.wallettransfer.logging.StructuredEventLogger;
 import com.paytm.wallettransfer.metrics.MetricsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -20,6 +22,15 @@ public class WalletService {
     private final WalletRepository walletRepository;
     private final StructuredEventLogger eventLogger;
     private final MetricsService metricsService;
+
+    /**
+     * Self-injection via @Lazy to call createWalletInNewTransaction through the Spring proxy.
+     * Calling 'this.createWalletInNewTransaction(...)' directly bypasses the proxy and
+     * silently drops the @Transactional(REQUIRES_NEW) boundary.
+     */
+    @Autowired
+    @Lazy
+    private WalletService self;
 
     public WalletService(WalletRepository walletRepository, StructuredEventLogger eventLogger, MetricsService metricsService) {
         this.walletRepository = walletRepository;
@@ -36,7 +47,7 @@ public class WalletService {
         }
 
         try {
-            return createWalletInNewTransaction(userId, initialBalance);
+            return self.createWalletInNewTransaction(userId, initialBalance);
         } catch (DataIntegrityViolationException e) {
             // concurrent request created the wallet between our check and save — fetch and return it in a clean transaction
             Wallet wallet = walletRepository.findByUserId(userId)
