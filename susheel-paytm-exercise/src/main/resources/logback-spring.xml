@@ -43,6 +43,6 @@
     <logger name="org.springframework.web.servlet.DispatcherServlet" level="INFO"/>
 
     <!-- Our application code stays at INFO -->
-    <logger name="com.example.demo" level="INFO"/>
+    <logger name="com.paytm.wallettransfer" level="INFO"/>
 
 </configuration>
