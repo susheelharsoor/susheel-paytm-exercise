@@ -11,10 +11,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
-    <artifactId>demo</artifactId>
+    <groupId>com.paytm</groupId>
+    <artifactId>wallet-transfer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>demo</name>
+    <name>wallet-transfer</name>
 
     <properties>
         <java.version>17</java.version>
