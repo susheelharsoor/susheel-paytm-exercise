@@ -1,0 +1,44 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-demo_db}
+      POSTGRES_USER:     ${DB_USERNAME:-demo_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-demo_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-demo_user} -d ${DB_NAME:-demo_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_NAME:     ${DB_NAME:-demo_db}
+      DB_USERNAME: ${DB_USERNAME:-demo_user}
+      DB_PASSWORD: ${DB_PASSWORD:-demo_password}
+      DDL_AUTO:    ${DDL_AUTO:-none}
+      SHOW_SQL:    ${SHOW_SQL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+volumes:
+  pgdata:
