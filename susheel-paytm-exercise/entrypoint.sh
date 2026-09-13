@@ -18,6 +18,9 @@ if [ "${DB_HOST:-localhost}" = "localhost" ]; then
     # PGDATA is set via ENV in the Dockerfile; default: /var/lib/postgresql/16/main
     if [ ! -f "${PGDATA}/PG_VERSION" ]; then
         echo "[entrypoint] Initialising PostgreSQL cluster in ${PGDATA} ..."
+        mkdir -p "${PGDATA}"
+        chown postgres:postgres "${PGDATA}"
+        chmod 700 "${PGDATA}"
         gosu postgres /usr/lib/postgresql/16/bin/initdb -D "${PGDATA}"
     fi
 
